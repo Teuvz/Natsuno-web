@@ -42,7 +42,7 @@
     
 		$url = $_REQUEST['url'];
        
-		$files = listAction();
+		$files = listAction(true);
 		$files = $files['files'];
 		$nameFile = count($files);
        
@@ -54,7 +54,7 @@
 			$adult = 1;
 		else
 			$adult = 0;
-		
+				
 		// save
 		$db->query( "INSERT INTO gif_img (name,url,adult) VALUES ('".$nameFile."','".$url."',".$adult.")" );
 		$img = $db->insert_id;
@@ -195,7 +195,7 @@
        
    }
      
-	function listAction() {
+	function listAction($noFilter = false) {
 		global $token, $db, $server;
 		
 		$response = array('success' => true);
@@ -211,10 +211,12 @@
 			LEFT JOIN gif_img_serie gis ON gis.id_img = i.id
 			LEFT JOIN gif_serie s ON s.id = gis.id_serie';
 			
-		if ( !$isConnected )
-			$sql .= ' WHERE i.adult = 0';
-		else if ( $adultOnly )
-			$sql .= ' WHERE i.adult = 1';
+		if ( !$noFilter ){ 
+			if ( !$isConnected )
+				$sql .= ' WHERE i.adult = 0';
+			else if ( $adultOnly )
+				$sql .= ' WHERE i.adult = 1';
+		}
 			
 		$sql .= ' GROUP BY i.id
 			ORDER BY i.id';
