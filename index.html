@@ -1,0 +1,180 @@
+<html ng-app="gallery">
+
+    <head>
+		<title>Matts' little gif gallery</title>
+        <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+        <link rel="shortcut icon" href="favicon.ico" />
+    </head>
+    
+    <body ng-controller="GalleryController as galleryCtrl" ng-init="galleryCtrl.init()">
+        
+        <header class="container" style="margin-bottom:15px;margin-top:15px;">
+            <div class="col-md-6">
+                Matts' little gif gallery
+            </div>
+            <div class="col-md-6 text-right">
+                <button class="btn btn-primary" ng-if="!galleryCtrl.showLogin && galleryCtrl.token==null" ng-click="galleryCtrl.showLogin=true">Login</button>
+                <span ng-if="galleryCtrl.showLogin && galleryCtrl.token == null">
+                    <i class="fa fa-fw fa-spin fa-spinner" ng-show="galleryCtrl.loginLoading"></i>
+                    <input type="text" placeholder="username" ng-model="galleryCtrl.username" ng-disabled="galleryCtrl.loginLoading" />&nbsp;
+                    <input type="password" placeholder="password" ng-model="galleryCtrl.password" ng-disabled="galleryCtrl.loginLoading" />&nbsp;
+                    <button class="btn btn-primary" ng-click="galleryCtrl.login()" ng-disabled="galleryCtrl.loginLoading" >Login</button>
+                </span>
+				<span ng-if="galleryCtrl.token != null">
+                    Hello {{ galleryCtrl.username }} - 
+                    <span ng-click="galleryCtrl.filtersVisible=!galleryCtrl.filtersVisible">Filter</span> - 
+                    <span ng-click="galleryCtrl.downloadVisible=!galleryCtrl.downloadVisible">Download</span> - 
+                    <span ng-click="galleryCtrl.logout()">Logout</span>
+                   </span>
+            </div>
+        </header>
+        
+        <main class="container">
+                    
+            <div class="row">
+                <div class="col-md-12">
+                    <div ng-if="galleryCtrl.downloadVisible" class="panel panel-default">
+                      <div class="panel-heading">Download</div>
+                      <div class="panel-body">
+                        <form class="form-inline">
+                            <div class="form-group">
+                                <input type="text" placeholder="Url" ng-model="galleryCtrl.downloadUrl" class="form-control" /> 
+                                <button class="btn btn-default" ng-click="galleryCtrl.download()">Download</button>
+                            </div>
+                            <div class="checkbox  form-group">
+                                <input type="checkbox" ng-model="galleryCtrl.downloadAdult" /> <label>Adult</label><br />
+                            </div>
+                            <div class="checkbox  form-group">
+                                <input type="checkbox" ng-model="galleryCtrl.downloadLive" /> <label>Live</label><br />
+                            </div>
+                            <div class="form-group">
+                                <input type="text" class="form-control" placeholder="Series" ng-model="galleryCtrl.downloadSeries" /><br />
+                            </div>
+                            <div class="form-group">
+                                <input type="text" class="form-control" placeholder="Tags" ng-model="galleryCtrl.downloadTags" />
+                            </div>
+                        </form>
+                      </div>
+                    </div>
+                </div>
+            </div>
+                    
+            <div class="row">
+                <div class="col-md-12">
+                    <div ng-if="galleryCtrl.filtersVisible" class="panel panel-default">
+                      <div class="panel-heading">Filters</div>
+                      <div class="panel-body">
+                        <form class="form-inline">
+                            <input type="checkbox" id="filterAdult" ng-model="galleryCtrl.filterAdult" /><label for="filterAdult">Adult content only</label>
+							<button class="btn btn-default" ng-click="galleryCtrl.load(1)">Filter</button>
+                        </form>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        
+			<div class="alert alert-info" ng-show="galleryCtrl.loading"><i class="fa fa-fw fa-spin fa-spinner"></i> Chargement en cours...</div>
+			<div class="alert alert-danger" ng-show="galleryCtrl.error"><i class="fa fa-fw fa-exclamation-triangle"></i> Une erreur est survenue</div>
+		
+            <div class="col-md-4 thumbnail" ng-repeat="file in galleryCtrl.files">
+                <img ng-if="file.format=='gif'" ng-src="{{ file.src }}" data-name="{{ file.name }}" style="height:230px;" imageonload="galleryCtrl.hideSpinner()" />
+                <div class="caption">
+                    <i ng-if="galleryCtrl.token != null" class="fa fa-fw" ng-click="galleryCtrl.token!=null&&galleryCtrl.adult(file)" ng-class="{'fa-heart': file.adult, 'fa-heart-o': !file.adult}"></i>
+                    <i ng-hide="true" id="spinner-{{ file.name }}" class="fa fa-fw fa-spin fa-spinner gif-spinner"></i>
+					<i class="fa fa-hashtag" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='tag'"></i>
+					<i class="fa fa-television" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='serie'"></i>
+                    <i class="fa fa-link" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='share';"></i>
+                    <span class="pull-right text-muted">{{ file.name }}</span>
+                </div>
+            </div>  
+            
+            <div class="col-md-12 text-center" ng-if="galleryCtrl.pages > 1">
+			
+				<nav aria-label="Page navigation" ng-hide="galleryCtrl.loading">
+				  <ul class="pagination">
+					<li ng-show="galleryCtrl.page > 1">
+					  <a ng-click="galleryCtrl.load(1)" aria-label="First">
+						<span aria-hidden="true">&laquo;&laquo;</span>
+					  </a>
+					</li>
+					<li ng-show="galleryCtrl.page > 1">
+					  <a ng-click="galleryCtrl.load( galleryCtrl.page - 1 )" aria-label="Previous">
+						<span aria-hidden="true">&laquo;</span>
+					  </a>
+					</li>
+					<li class="active"><a href="#">{{ galleryCtrl.page }}</a></li>
+					<li ng-show="galleryCtrl.page < galleryCtrl.pages">
+					  <a ng-click="galleryCtrl.load( galleryCtrl.page + 1 )" aria-label="Next">
+						<span aria-hidden="true">&raquo;</span>
+					  </a>
+					</li>
+					<li ng-show="galleryCtrl.page < galleryCtrl.pages">
+					  <a ng-click="galleryCtrl.load( galleryCtrl.pages )" aria-label="Last">
+						<span aria-hidden="true">&raquo;&raquo;</span>
+					  </a>
+					</li>
+				  </ul>
+				</nav>
+			
+			</div>
+        
+        </main>
+        
+        <footer>
+        </footer>
+		
+		<modal id="myModal" class="modal fade" tabindex="-1" role="dialog">
+		  <div class="modal-dialog" role="document">
+			<div class="modal-content">
+			  <div class="modal-body">
+			  
+				<div ng-if="galleryCtrl.selectedMode=='tag'">
+					<ul ng-if="galleryCtrl.token">
+						<li ng-repeat="tag in galleryCtrl.selected.tags">{{ tag }}</li>
+						<li ng-if="galleryCtrl.token"><input type="text" ng-model="galleryCtrl.newtag" ng-disabled="galleryCtrl.savingTag" list="alltags" /><button ng-click="galleryCtrl.tag()" ng-disabled="galleryCtrl.savingTag">Add</button></li>
+					</ul>
+                    <span ng-if="galleryCtrl.selected.tags.length == 0">No tag was defined for gif #{{ galleryCtrl.selected.name }}</span>
+					<datalist id="alltags">
+						<option ng-repeat="tag in galleryCtrl.alltags">{{ tag.label }}</option>
+					</datalist>
+					<ul ng-if="galleryCtrl.token">
+						<li style="list-style-type:none;display:inline-block;margin:3px;" ng-repeat="tag in galleryCtrl.alltags | limitTo:10"><a ng-disabled="galleryCtrl.savingTag" ng-click="galleryCtrl.tag(tag.label)">#{{tag.label}}</a></li>
+					</ul>
+				</div>
+				
+				<div ng-if="galleryCtrl.selectedMode=='serie'">
+					<ul ng-if="galleryCtrl.token">
+						<li ng-repeat="serie in galleryCtrl.selected.series">{{ serie }}</li>
+						<li ng-if="galleryCtrl.token"><input type="text" ng-model="galleryCtrl.newserie" ng-disabled="galleryCtrl.savingSerie" list="allseries" /><button ng-click="galleryCtrl.serie()" ng-disabled="galleryCtrl.savingSerie">Add</button></li>
+					</ul>
+                    <span ng-if="galleryCtrl.selected.series.length == 0">No serie was defined for gif #{{ galleryCtrl.selected.name }}</span>
+					<datalist id="allseries">
+						<option ng-repeat="serie in galleryCtrl.allseries">{{ serie.label }}</option>
+					</datalist>
+				</div>
+                
+                <div ng-if="galleryCtrl.selectedMode=='share'">
+					<input type="text" onfocus="this.select();" class="form-control" value="http://www.matthewpcharlton.com/gifs/image?{{ galleryCtrl.selected.name }}" />
+                    <!-- Go to www.addthis.com/dashboard to customize your tools -->
+                    <div class="addthis_inline_share_toolbox"></div>
+				</div>
+				
+			  </div>
+			  <div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			  </div>
+			</div>
+		  </div>
+		</modal>
+    
+		<script src="https://use.fontawesome.com/5bd9566f38.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+        <script src="app.js"></script>
+        <!-- Go to www.addthis.com/dashboard to customize your tools -->
+        <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-5810a0b00fbedc89"></script>
+
+    </body>
+    
+</html>
