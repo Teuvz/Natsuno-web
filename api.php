@@ -302,7 +302,7 @@
 		
 			if ( !$isConnected || $adultOnly == 1 )
 				$sql .= ' AND i.adult = 0';
-			else if ( $adultOnly == 2 )
+			else if ( $isConnected && $adultOnly == 2 )
 				$sql .= ' AND i.adult = 1';
 			
 			if ( isset($_REQUEST['tag']) && $_REQUEST['tag'] != "" )
