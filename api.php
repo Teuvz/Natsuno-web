@@ -1,8 +1,10 @@
 <?php
+      
+	$config = parse_ini_file( 'data.ini', true );
    
-    $db = mysqli_connect('matthewpsql.mysql.db','matthewpsql','xBo4esIP','matthewpsql');
-    $token = 'abcdefGhIjklmnOpqrStuVWxyz';
-
+    $db = mysqli_connect($config['database']['server'],$config['database']['user'],$config['database']['pass'],$config['database']['database']);
+    $token = $config['users']['token'];
+	
     error_reporting(-1);
 	ini_set('error_reporting', E_ALL);
     ini_set('display_startup_errors', 1);
@@ -34,6 +36,83 @@
       
    echo json_encode( $result );
    
+   function shareAction() {
+	   global $token, $db;
+	   
+	   if ( !isset($_REQUEST['token']) || $_REQUEST['token'] != $token )
+			return array('success' => false, 'error' => 'false or missing token' );
+		
+		$sender = $_REQUEST['sender'];
+		$receiver = $_REQUEST['receiver'];
+		$gif = $_REQUEST['gif'];
+		
+		$filesDb = $db->query( 'SELECT id FROM gif_img WHERE name = "'.$gif.'"' );
+		
+		foreach( $filesDb as $file ){};
+				
+		$db->query( 'INSERT INTO gif_share (sender,receiver,id_gif,date) VALUES ("'.$sender.'","'.$receiver.'",'.$file['id'].',NOW())' );
+		
+		return array('success' => true, 'share' => $db->insert_id );
+   }
+   
+   function getsharedAction() {
+		global $token, $db;
+	   
+		if ( !isset($_REQUEST['token']) || $_REQUEST['token'] != $token )
+			return array('success' => false, 'error' => 'false or missing token' );
+		
+		$response = array('success' => true);
+		$user = $_REQUEST['user'];
+		
+		$files = array();
+		$filesDb = $db->query( 'SELECT s.id, s.sender, s.date, i.name, i.url, i.details, i.adult FROM gif_share s LEFT JOIN gif_img i ON i.id = s.id_gif WHERE receiver = "'.$user.'" ORDER BY date DESC LIMIT 1' );
+		
+		foreach( $filesDb as $file ) {
+			
+			$alt = 'http://www.matthewpcharlton.com/gifs/image?'.$file['name'];
+			
+			if ( $file['adult'] == 1 ) {
+				$hashString = $file['name'] . $file['url'] . 'true';
+					
+				if ( $file['details'] == null )
+					$hashString .= 'null';
+				else
+					$hashString .= $file['details'];
+				
+				$hash = base64_encode( $hashString );
+				
+				$alt .= '&hash='.$hash;
+			}
+			
+			$files[] = array(
+				'src' => $file['url'],
+				'name' => $file['name'],
+				'alt' => $alt,
+				'details' => $file['details'],
+				'adult' => (bool)$file['adult'],
+				'tags' => array(),
+				'series' => array(),
+				'comments' => array(),
+				'format' => 'gif'
+			);
+		}
+		
+		$response['files'] = $files;
+	   
+	   return $response;
+   }
+   
+   function removeAction() {
+	   global $token, $db;
+	   
+	   if ( !isset($_REQUEST['token']) || $_REQUEST['token'] != $token )
+			return array('success' => false, 'error' => 'false or missing token' );
+		
+		$db->query('DELETE FROM gif_img WHERE name = "'.$_REQUEST['id'].'"');
+	   
+	   return array('success' => true );
+   }
+   
    function downloadAction() {
 		global $token, $db;
        
@@ -42,10 +121,19 @@
     
 		$url = $_REQUEST['url'];
        
-		$files = listAction(true);
+		/*$files = listAction(true);
 		$files = $files['files'];
-		$nameFile = count($files);
+		$nameFile = count($files);*/
+		
+		$counter = $db->query('SELECT MAX(name) as nb FROM gif_img');
+		$nbImages = null;
+		
+		foreach( $counter as $iCounter )
+			$nbImages = (int)$iCounter['nb'];			
        
+	   $nbImages += 1;
+	   $nameFile = (string) $nbImages;
+	   
 		while( strlen($nameFile) < 5 )
 			$nameFile = '0'.$nameFile;
         
@@ -184,15 +272,22 @@
 		return array('success'=>true);
 	}
 	
-	function loginAction() {
-       global $token;
+	function loginAction() {  
+	   global $token, $config;
         
-       if ( isset($_REQUEST['username']) && $_REQUEST['username'] == 'matt' 
-			&& isset($_REQUEST['password']) && $_REQUEST['password'] == 'maiden' )
-           return array('success' => true, 'token' => $token);
-       else
-           return array('success' => false);
-       
+		if ( !isset($_REQUEST['username']) || $_REQUEST['username'] == '' || !isset($_REQUEST['password']) || $_REQUEST['password'] == '' )
+			return array('success' => false);
+		
+		$username = $_REQUEST['username'];
+		$password = $_REQUEST['password'];
+		
+		$configUsers = explode( ',', $config['users']['names'] );
+		$configPasswords = explode( ',', $config['users']['passwords'] );
+		
+		if ( in_array($username,$configUsers,true) && in_array($password,$configPasswords,true) )
+			return array('success' => true, 'token' => $token);
+		else
+			return array('success' => false);       
    }
      
 	function listAction($noFilter = false) {
@@ -202,7 +297,12 @@
 		$files = array();
 
 		$isConnected = isset($_REQUEST['token']) && $_REQUEST['token'] == $token;
-		$adultOnly = isset($_REQUEST['adult']) && $_REQUEST['adult'] == 'true';
+		//$adultOnly = isset($_REQUEST['adult']) && $_REQUEST['adult'] == 'true';
+		
+		if ( !isset($_REQUEST['adult']) )
+			$adultOnly = 0;
+		else
+			$adultOnly = $_REQUEST['adult'];
 		
 		$sql = 'SELECT i.id, i.name, i.url, i.adult, i.details, GROUP_CONCAT(t.label) as tags, GROUP_CONCAT(s.label) as series
 			FROM gif_img i 
@@ -212,10 +312,20 @@
 			LEFT JOIN gif_serie s ON s.id = gis.id_serie';
 			
 		if ( !$noFilter ){ 
-			if ( !$isConnected )
-				$sql .= ' WHERE i.adult = 0';
-			else if ( $adultOnly )
-				$sql .= ' WHERE i.adult = 1';
+		
+			$sql .= ' WHERE 1';
+		
+			if ( !$isConnected || $adultOnly == 1 )
+				$sql .= ' AND i.adult = 0';
+			else if ( $adultOnly == 2 )
+				$sql .= ' AND i.adult = 1';
+			
+			if ( isset($_REQUEST['tag']) && $_REQUEST['tag'] != "" )
+			{
+				$tag = $_REQUEST['tag'];
+				$sql .= " AND t.label = '".$tag."'";				
+			}
+			
 		}
 			
 		$sql .= ' GROUP BY i.id
@@ -234,9 +344,25 @@
 			if ( $file['tags'] != null )	$tags = explode( ',', $file['tags'] );
 			if ( $file['series'] != null )	$series = explode( ',', $file['series'] );
 			
+			$alt = 'http://www.matthewpcharlton.com/gifs/image?'.$file['name'];
+			
+			if ( $file['adult'] == 1 ) {
+				$hashString = $file['name'] . $file['url'] . 'true';
+					
+				if ( $file['details'] == null )
+					$hashString .= 'null';
+				else
+					$hashString .= $file['details'];
+				
+				$hash = base64_encode( $hashString );
+				
+				$alt .= '&hash='.$hash;
+			}
+			
 			$files[] = array(
 				'src' => $file['url'],
 				'name' => $file['name'],
+				'alt' => $alt,
 				'details' => $file['details'],
 				'adult' => (bool)$file['adult'],
 				'tags' => $tags,
@@ -334,7 +460,7 @@
      
    function randomAction()
    {
-        $response = array('success' => false, 'files' => array(), 'test' => 'plop');       
+        $response = array('success' => true, 'files' => array(), 'test' => 'plop');       
         $list = listAction();                
         $random = $list['files'][array_rand($list['files'])];
         

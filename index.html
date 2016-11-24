@@ -4,6 +4,13 @@
 		<title>Matts' little gif gallery</title>
         <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
         <link rel="shortcut icon" href="favicon.ico" />
+		
+		<style>
+		.clickable {
+			cursor: pointer;
+		}
+		</style>
+		
     </head>
     
     <body ng-controller="GalleryController as galleryCtrl" ng-init="galleryCtrl.init()">
@@ -65,7 +72,9 @@
                       <div class="panel-heading">Filters</div>
                       <div class="panel-body">
                         <form class="form-inline">
-                            <input type="checkbox" id="filterAdult" ng-model="galleryCtrl.filterAdult" /><label for="filterAdult">Adult content only</label>
+                            <!-- <input type="checkbox" id="filterAdult" ng-model="galleryCtrl.filterAdult" /> <label for="filterAdult">Adult content only</label><br /> -->
+							<label for="filterAdult">Adult content</label> <select id="filterAdult" ng-model="galleryCtrl.filterAdult"><option value="0" selected>Yes</option><option value="1">No</option><option value="2">Only</option></select>
+							<br />
 							<button class="btn btn-default" ng-click="galleryCtrl.load(1)">Filter</button>
                         </form>
                       </div>
@@ -79,12 +88,13 @@
             <div class="col-md-4 thumbnail" ng-repeat="file in galleryCtrl.files">
                 <img ng-if="file.format=='gif'" ng-src="{{ file.src }}" data-name="{{ file.name }}" style="height:230px;" imageonload="galleryCtrl.hideSpinner()" />
                 <div class="caption">
-                    <i ng-if="galleryCtrl.token != null" class="fa fa-fw" ng-click="galleryCtrl.token!=null&&galleryCtrl.adult(file)" ng-class="{'fa-heart': file.adult, 'fa-heart-o': !file.adult}"></i>
-                    <i ng-hide="true" id="spinner-{{ file.name }}" class="fa fa-fw fa-spin fa-spinner gif-spinner"></i>
-					<i class="fa fa-hashtag" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='tag'"></i>
-					<i class="fa fa-television" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='serie'"></i>
-                    <i class="fa fa-link" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='share';"></i>
-                    <span class="pull-right text-muted">{{ file.name }}</span>
+                    <i ng-if="galleryCtrl.token != null" class="fa fa-fw clickable" ng-click="galleryCtrl.token!=null&&galleryCtrl.adult(file)" ng-class="{'fa-heart': file.adult, 'fa-heart-o': !file.adult}" title="Adult content"></i>
+                    <i ng-hide="true" id="spinner-{{ file.name }}" class="fa fa-fw fa-spin fa-spinner gif-spinner" title="Loading..."></i>
+					<i class="fa fa-hashtag clickable" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='tag'" title="Tags"></i>
+					<i class="fa fa-television clickable" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='serie'" title="Series"></i>
+                    <i class="fa fa-link clickable" data-toggle="modal" data-target="#myModal" ng-click="galleryCtrl.selected=file;galleryCtrl.selectedMode='share';" title="Link"></i>
+					<i ng-if="galleryCtrl.token != null" class="fa fa-share-square-o clickable" aria-hidden="true" ng-click="galleryCtrl.share(file)" title="Share"></i>
+                    <span class="pull-right text-muted">{{ file.name }} <i ng-if="galleryCtrl.token != null && galleryCtrl.username=='matt'" class="fa fa-trash clickable" ng-click="galleryCtrl.token!=null&&galleryCtrl.remove(file)" title="Delete"></i></span>
                 </div>
             </div>  
             
@@ -154,7 +164,7 @@
 				</div>
                 
                 <div ng-if="galleryCtrl.selectedMode=='share'">
-					<input type="text" onfocus="this.select();" class="form-control" value="http://www.matthewpcharlton.com/gifs/image?{{ galleryCtrl.selected.name }}" />
+					<input type="text" onfocus="this.select();" class="form-control" value="{{ galleryCtrl.selected.alt }}" />
                     <!-- Go to www.addthis.com/dashboard to customize your tools -->
                     <div class="addthis_inline_share_toolbox"></div>
 				</div>
