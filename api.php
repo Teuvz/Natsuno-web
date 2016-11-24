@@ -120,11 +120,7 @@
 			return array('success' => false, 'error' => 'false or missing token' );
     
 		$url = $_REQUEST['url'];
-       
-		/*$files = listAction(true);
-		$files = $files['files'];
-		$nameFile = count($files);*/
-		
+       	
 		$counter = $db->query('SELECT MAX(name) as nb FROM gif_img');
 		$nbImages = null;
 		
@@ -137,17 +133,14 @@
 		while( strlen($nameFile) < 5 )
 			$nameFile = '0'.$nameFile;
         
-		// adult ?
 		if ( isset($_REQUEST['adult']) && $_REQUEST['adult'] == 'true' )
 			$adult = 1;
 		else
 			$adult = 0;
 				
-		// save
 		$db->query( "INSERT INTO gif_img (name,url,adult) VALUES ('".$nameFile."','".$url."',".$adult.")" );
 		$img = $db->insert_id;
 		
-		// live ?
 		if ( isset($_REQUEST['live']) && $_REQUEST['live'] == 'true' ){
 			$tagLive = null;
 			$tagsDb = $db->query('SELECT id, label FROM gif_tag WHERE label = "live"');
@@ -156,7 +149,6 @@
 			$db->query( 'INSERT INTO gif_img_tag (id_img,id_tag,date) VALUES ('.$img.','.$tagLive['id'].',NOW())' );
 		}
 		
-		// series ?
 		if ( isset($_REQUEST['series']) && $_REQUEST['series'] != '' ) {
 			
 			$series = $_REQUEST['series'];
@@ -203,7 +195,6 @@
 		$serie = null;
 		$img = null;
 		
-		// get serie
 		$seriesDb = $db->query( "SELECT id, label FROM gif_serie WHERE label = '".$value."'" );
 		
 		foreach( $seriesDb as $serie ) {};
@@ -217,11 +208,9 @@
 			);
 		}
 		
-		// get img
 		$imgDb = $db->query( "SELECT id FROM gif_img WHERE name = '".$imgName."'" );		
 		foreach( $imgDb as $img ) {};
 		
-		// create link
 		$db->query( "INSERT INTO gif_img_serie (id_img,id_serie,date) VALUES (".$img['id'].",".$serie['id'].",NOW())" );
 		
 		return array('success'=>true);
@@ -248,7 +237,6 @@
 		$tag = null;
 		$img = null;
 		
-		// get tag
 		$tagsDb = $db->query( "SELECT id, label FROM gif_tag WHERE label = '".$value."'" );
 		
 		foreach( $tagsDb as $tag ) {};
@@ -262,11 +250,9 @@
 			);
 		}
 		
-		// get img
 		$imgDb = $db->query( "SELECT id FROM gif_img WHERE name = '".$imgName."'" );
 		foreach( $imgDb as $img ) {};
 		
-		// create link
 		$db->query( "INSERT INTO gif_img_tag (id_img,id_tag,date) VALUES (".$img['id'].",".$tag['id'].",NOW())" );
 		
 		return array('success'=>true);
@@ -297,7 +283,6 @@
 		$files = array();
 
 		$isConnected = isset($_REQUEST['token']) && $_REQUEST['token'] == $token;
-		//$adultOnly = isset($_REQUEST['adult']) && $_REQUEST['adult'] == 'true';
 		
 		if ( !isset($_REQUEST['adult']) )
 			$adultOnly = 0;
@@ -376,87 +361,6 @@
 		$response['files'] = $files;
 		return $response;
 	}
-	 
-   function listOldAction() {
-       global $token, $db, $server;
-       
-       $filesDetails = array();
-       $filesDb = $db->query('SELECT i.name, i.adult, i.details FROM gif_img i ORDER BY id');
-              
-       foreach( $filesDb as $file )
-       {
-           $filesDetails[$file['name']] = $file;
-       }
-       
-       $isAdult = ( isset($_REQUEST['token']) && $_REQUEST['token'] == $token );
-       
-       $imgFolder = 'img';
-       $response = array('success' => true);
-       
-       $filesRaw = scandir($imgFolder);
-       $files = array();
-       foreach( $filesRaw as $file )
-       {
-           
-           if ( !is_file($imgFolder.'/'.$file) )
-               continue;
-           
-           $name = str_replace('.gif','',$file);
-           $name = str_replace('.webm','',$name);
-           
-           $format = 'gif';
-           
-           if ( strpos($file,'.webm') !== false )
-               $format = 'webm';
-           
-           $cleanFile = array(
-                'src' => $server.$imgFolder.'/'.$file,
-                'name' => $name,
-                'details' => null,
-                'tags' => array(),
-                'adult' => false,
-                'series' => array(),
-                'comments' => array(),
-                'indb' => false,
-                'format' => $format
-           );
-           
-            if ( isset($filesDetails[$name]) ){
-                $cleanFile['indb'] = true;
-                foreach( $filesDetails[$name] as $key => $detail ) {
-                    $cleanFile[$key] = $detail;
-                }
-            }
-           
-            $cleanFile['adult'] = ($cleanFile['adult'] == 1);
-            
-            if ( $cleanFile['adult'] && !$isAdult )
-                continue;
-           
-            $files[$cleanFile['name']] = $cleanFile;
-       }
-       
-       // get tags
-	   $tagsDb = $db->query('SELECT i.name, t.id, t.label FROM gif_img_tag it LEFT JOIN gif_img i ON i.id = it.id_img LEFT JOIN gif_tag t ON t.id = it.id_tag');
-	   
-	   foreach( $tagsDb as $tag ) {
-			if ( isset($files[$tag['name']]) )
-				$files[$tag['name']]['tags'][] = $tag['label'];
-	   }
-	   
-       // get series
-       
-	   $seriesDb = $db->query('SELECT i.name, s.id, s.label FROM gif_img_serie iss LEFT JOIN gif_img i ON i.id = iss.id_img LEFT JOIN gif_serie s ON s.id = iss.id_serie');
-	   
-	   foreach( $seriesDb as $serie ) {
-			if ( isset($files[$serie['name']]) )
-				$files[$serie['name']]['series'][] = $serie['label'];
-	   }
-	   
-       $response['length'] = count($files);
-       $response['files'] = $files;
-       return $response;
-   }
      
    function randomAction()
    {
@@ -487,9 +391,9 @@
    
    function adultAction()
    {
-		global $db;
+		global $db, $token;
 		
-		if ( !isset($_REQUEST['id']) || !isset($_REQUEST['value']) )
+		if ( !isset($_REQUEST['id']) || !isset($_REQUEST['value']) || !isset($_REQUEST['token']) || $_REQUEST['token'] != $token )
 			return array('success' => false);
 		
 		$adult = 0;
@@ -499,6 +403,13 @@
 		$db->query( 'UPDATE gif_img SET adult = '.$adult.' WHERE name = "'.$_REQUEST['id'].'"' );
 		
 		return array('success' => true );		
+   }
+   
+   function bananaAction()
+   {
+		$banana = file_get_contents('banana.txt');
+		echo $banana;
+		exit();
    }
    
 	$db->close();

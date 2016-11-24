@@ -104,20 +104,7 @@
             $('#'+id).select();
             console.log('select '+id+' content');
         }
-        
-        this.rename = function() {
-            
-            this.renaming = true;
-            
-            $http({
-				method: 'GET',
-				url: this.api + '?rename&token=' + this.token
-			}).then(function successCallback(response) {
-                gallery.load(gallery.page);
-				gallery.renaming = false;
-			});
-        }
-		
+        		
 		this.loadTags = function() {
 			
 			$http({
@@ -195,7 +182,7 @@
 			
 			$http({
 				method: 'GET',
-				url: this.api + '?adult&id='+file.name+'&value='+!file.adult
+				url: this.api + '?adult&id='+file.name+'&value='+!file.adult+"&token="+this.token
 			}).then(function successCallback(response){
 				gallery.loading = false;
 				//this.load(this.page);
